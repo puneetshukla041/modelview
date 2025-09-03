@@ -34,7 +34,7 @@ function Loader() {
 }
 
 // Camera animation controller
-function CameraController({ hasExplored, setHasExplored, setButtonVisible }: any) {
+function CameraController({ hasExplored, setHasExplored, setButtonVisible, setShowText }: any) {
   const targetPosition = new THREE.Vector3(2, 0, 4);
   const targetFov = 30;
 
@@ -42,17 +42,20 @@ function CameraController({ hasExplored, setHasExplored, setButtonVisible }: any
     if (hasExplored) {
       const cam = camera as THREE.PerspectiveCamera;
 
-      // Smooth movement
-      cam.position.lerp(targetPosition, 0.05);
+      // Faster movement
+      cam.position.lerp(targetPosition, 0.15);
 
-      // Smooth zoom
-      cam.fov += (targetFov - cam.fov) * 0.05;
+      // Faster zoom
+      cam.fov += (targetFov - cam.fov) * 0.15;
       cam.updateProjectionMatrix();
 
       // Stop animation when close
-      if (cam.position.distanceTo(targetPosition) < 0.01) {
+      if (cam.position.distanceTo(targetPosition) < 0.05) {
         setHasExplored(false);
-        setButtonVisible(false); // Hide button permanently after animation
+        setButtonVisible(false);
+
+        // ✅ Show the text after animation finishes
+        setShowText(true);
       }
     }
   });
@@ -64,6 +67,7 @@ function CameraController({ hasExplored, setHasExplored, setButtonVisible }: any
 export default function App() {
   const [hasExplored, setHasExplored] = useState(false);
   const [buttonVisible, setButtonVisible] = useState(true);
+  const [showText, setShowText] = useState(false);
 
   return (
     <div className="flex h-screen w-screen bg-black relative font-sans">
@@ -100,6 +104,19 @@ export default function App() {
         </div>
       )}
 
+      {/* ✅ Text on Left Side (after animation completes) */}
+      {showText && (
+        <div className="absolute left-10 top-1/3 max-w-xl">
+          <h3
+            data-aos="fade-up"
+            data-aos-once="true"
+            className="text-3xl font-bold leading-snug bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent"
+          >
+            1″ CMOS Primary Wide-Angle Camera
+          </h3>
+        </div>
+      )}
+
       {/* 3D Scene */}
       <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
         {/* Lights */}
@@ -119,9 +136,10 @@ export default function App() {
           hasExplored={hasExplored}
           setHasExplored={setHasExplored}
           setButtonVisible={setButtonVisible}
+          setShowText={setShowText}
         />
 
-        {/* Controls (rotation disabled) */}
+        {/* Controls */}
         <OrbitControls
           enableRotate={false}
           enablePan={!hasExplored}
