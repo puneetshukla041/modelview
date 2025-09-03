@@ -1,24 +1,9 @@
 "use client";
 
-import { Suspense } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Suspense, useState } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Html, useProgress } from "@react-three/drei";
-
-// Loader Component
-function Loader() {
-  const { progress } = useProgress();
-
-  return (
-    <Html center>
-      <div className="flex flex-col items-center justify-center">
-        {/* Circle Loader */}
-        <div className="w-12 h-12 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-        {/* Percentage */}
-        <p className="mt-3 text-white text-sm font-medium">{progress.toFixed(0)}%</p>
-      </div>
-    </Html>
-  );
-}
+import * as THREE from "three";
 
 // 3D Model Component
 function Model() {
@@ -27,25 +12,96 @@ function Model() {
     <primitive
       object={scene}
       scale={0.5}
-      position={[0, -0.5, 0]}
-      rotation={[0, Math.PI, 0]} // model still facing forward
+      position={[0.5, -0.5, 0]}
+      rotation={[0, -0.87266, 0]} // ~ -50 degrees left
     />
   );
 }
 
-export default function Dashboard() {
-  // Convert 200° → radians
-  const angle = (200 * Math.PI) / 180;
-  const radius = 2; // zoom distance
+// Loader Component
+function Loader() {
+  const { progress } = useProgress();
+  return (
+    <Html center>
+      <div className="flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+        <p className="mt-3 text-white text-sm font-medium">
+          {progress.toFixed(0)}%
+        </p>
+      </div>
+    </Html>
+  );
+}
+
+// Camera animation controller
+function CameraController({ hasExplored, setHasExplored, setButtonVisible }: any) {
+  const targetPosition = new THREE.Vector3(2, 0, 4);
+  const targetFov = 30;
+
+  useFrame(({ camera }) => {
+    if (hasExplored) {
+      const cam = camera as THREE.PerspectiveCamera;
+
+      // Smooth movement
+      cam.position.lerp(targetPosition, 0.05);
+
+      // Smooth zoom
+      cam.fov += (targetFov - cam.fov) * 0.05;
+      cam.updateProjectionMatrix();
+
+      // Stop animation when close
+      if (cam.position.distanceTo(targetPosition) < 0.01) {
+        setHasExplored(false);
+        setButtonVisible(false); // Hide button permanently after animation
+      }
+    }
+  });
+
+  return null;
+}
+
+// Main App
+export default function App() {
+  const [hasExplored, setHasExplored] = useState(false);
+  const [buttonVisible, setButtonVisible] = useState(true);
 
   return (
-    <div className="flex h-screen w-screen bg-black">
-      <Canvas
-        camera={{
-          position: [Math.sin(angle) * radius, 0, Math.cos(angle) * radius],
-          fov: 45,
-        }}
-      >
+    <div className="flex h-screen w-screen bg-black relative font-sans">
+      {/* Button */}
+      {buttonVisible && (
+        <div
+          className={`absolute top-1/2 left-90 transform -translate-y-1/2 z-10 transition-opacity duration-700 ${
+            hasExplored ? "opacity-0" : "opacity-100"
+          }`}
+        >
+          <button
+            onClick={() => setHasExplored(true)}
+            className="relative px-6 py-2 text-white text-base font-semibold rounded-full
+                       bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800
+                       border border-gray-600 shadow-lg
+                       transition-all duration-300 cursor-pointer overflow-hidden
+                       group"
+          >
+            <span className="relative z-10">Explore</span>
+
+            {/* Moving gradient shine */}
+            <span
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent 
+                         -translate-x-full group-hover:translate-x-full 
+                         transition-transform duration-700 ease-in-out"
+            ></span>
+
+            {/* Glow effect */}
+            <span
+              className="absolute inset-0 rounded-full shadow-[0_0_15px_3px_rgba(59,130,246,0.5)] 
+                         opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            ></span>
+          </button>
+        </div>
+      )}
+
+      {/* 3D Scene */}
+      <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
         {/* Lights */}
         <ambientLight intensity={1} />
         <directionalLight position={[5, 5, 5]} intensity={1.5} />
@@ -58,7 +114,19 @@ export default function Dashboard() {
           <Model />
         </Suspense>
 
-        <OrbitControls enableZoom />
+        {/* Camera animation */}
+        <CameraController
+          hasExplored={hasExplored}
+          setHasExplored={setHasExplored}
+          setButtonVisible={setButtonVisible}
+        />
+
+        {/* Controls (rotation disabled) */}
+        <OrbitControls
+          enableRotate={false}
+          enablePan={!hasExplored}
+          enableZoom={false}
+        />
       </Canvas>
     </div>
   );
